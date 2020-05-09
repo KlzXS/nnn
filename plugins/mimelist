@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # Description: Run fd/find in subtree and list files by mime type in smart context
 # Dependencies: fd/find
 #
-# Shell: POSIX compliant
+# Shell: POSIX compliant supporting mktemp
 # Author: Arun Prakash Jana
 
 . "$(dirname "$0")"/.nnn-plugin-helper
@@ -17,5 +17,7 @@ fi
 printf "mime: "
 read -r mime
 
-printf "%s" "+l" > "$NNN_PIPE"
-$fd | file -if- | grep "$mime" | awk -F: '{printf "%s\0", $1}' > "$NNN_PIPE"
+nnn_tmp=$(mktemp "/tmp/nnnXXXXXX")
+
+$fd | file -if- | grep "$mime" | awk -F: '{printf "%s\0", $1}' > "$nnn_tmp"
+printf "+l%s" "$nnn_tmp" > "$NNN_PIPE"

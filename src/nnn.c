@@ -4280,6 +4280,14 @@ static void readpipe(int fd, char **path, char **lastname, char **lastdir)
 		/* Remove last list mode path, if any */
 		rmlistpath();
 
+		len = read(fd, g_buf, PATH_MAX);
+		if (len <= 0)
+			return;
+		g_buf[len] = '\0';
+
+		fd = open(g_buf, O_RDONLY);
+		unlink(g_buf);
+
 		nextpath = load_input(fd, *path);
 	}
 
