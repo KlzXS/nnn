@@ -1161,11 +1161,9 @@ static inline void printmsg_nc(const char *msg)
 	addch('\n');
 }
 
-static void printmsg(const char *msg)
+static inline void printmsg(const char *msg)
 {
-	attron(COLOR_PAIR(cfg.curctx + 1));
 	printmsg_nc(msg);
-	attroff(COLOR_PAIR(cfg.curctx + 1));
 }
 
 static void printwait(const char *msg, int *presel)
@@ -1236,6 +1234,7 @@ static void xdelay(useconds_t delay)
 
 static char confirm_force(bool selection)
 {
+	return 'f';
 	char str[64];
 
 	snprintf(str, 64, messages[MSG_FORCE_RM],
@@ -4563,43 +4562,43 @@ static void show_help(const char *path)
 {
 	int fd;
 	FILE *fp;
-	const char *start, *end;
+	const char *start;
 	const char helpstr[] = {
-      "0\n"
-       "1NAVIGATION\n"
-	       "9Up k  Up%-16cPgUp ^U  Scroll up\n"
-	       "9Dn j  Down%-14cPgDn ^D  Scroll down\n"
-	       "9Lt h  Parent%-12c~ ` @ -  HOME, /, start, last\n"
-	   "5Ret Rt l  Open%-20c'  First file/match\n"
-	       "9g ^A  Top%-21c.  Toggle hidden\n"
-	       "9G ^E  End%-21c+  Toggle auto-advance\n"
-	       "9b ^/  Bookmark key%-12c,  Mark CWD\n"
-		"a1-4  Context 1-4%-7c(Sh)Tab  Cycle context\n"
-		"aEsc  Send to FIFO%-11c^L  Redraw\n"
-		  "cQ  Pick/err, quit%-9c^G  QuitCD\n"
-	          "cq  Quit context%-6c2Esc ^Q  Quit\n"
-		  "c?  Help, conf\n"
-       "1FILTER & PROMPT\n"
-		  "c/  Filter%-12cAlt+Esc  Clear filter & redraw\n"
-		"aEsc  Exit prompt%-12c^L  Clear prompt/last filter\n"
-		 "b^N  Toggle type-to-nav%-0c\n"
-       "1FILES\n"
-	       "9o ^O  Open with...%-12cn  Create new/link\n"
-	       "9f ^F  File details%-12cd  Detail mode toggle\n"
-		 "b^R  Rename/dup%-14cr  Batch rename\n"
-		  "cz  Archive%-17ce  Edit file\n"
-		  "c*  Toggle exe%-14c>  Export list\n"
-	   "5Space ^J  (Un)select%-7cm ^Space  Mark range/clear sel\n"
-	          "ca  Select all%-14cA  Invert sel\n"
-	       "9p ^P  Copy sel here%-8cw ^W  Cp/mv sel as\n"
-	       "9v ^V  Move sel here%-11cE  Edit sel\n"
-	       "9x ^X  Delete\n"
-       "1MISC\n"
-	      "8Alt ;  Select plugin%-11c=  Launch app\n"
-	       "9! ^]  Shell%-19c]  Cmd prompt\n"
-		  "cc  Connect remote%-10cu  Unmount remote/archive\n"
-	       "9t ^T  Sort toggles%-12cs  Manage session\n"
-		  "cT  Set time type%-11c0  Lock\n"
+		"\n"
+		" NAVIGATION\n"
+		"      Up k  Up                PgUp ^U  Scroll up\n"
+		"      Dn j  Down              PgDn ^D  Scroll down\n"
+		"      Lt h  Parent            ~ ` @ -  HOME, /, start, last\n"
+		"  Ret Rt l  Open                    '  First file/match\n"
+		"      g ^A  Top                     .  Toggle hidden\n"
+		"      G ^E  End                     +  Toggle auto-advance\n"
+		"      b ^/  Bookmark key            ,  Mark CWD\n"
+		"       1-4  Context 1-4       (Sh)Tab  Cycle context\n"
+		"       Esc  Send to FIFO           ^L  Redraw\n"
+		"         Q  Pick/err, quit         ^G  QuitCD\n"
+		"         q  Quit context      2Esc ^Q  Quit\n"
+		"         ?  Help, conf\n"
+		" FILTER & PROMPT\n"
+		"         /  Filter            Alt+Esc  Clear filter & redraw\n"
+		"       Esc  Exit prompt            ^L  Clear prompt/last filter\n"
+		"        ^N  Toggle type-to-nav\n"
+		" FILES\n"
+		"      o ^O  Open with...            n  Create new/link\n"
+		"      f ^F  File details            d  Detail mode toggle\n"
+		"        ^R  Rename/dup              r  Batch rename\n"
+		"         z  Archive                 e  Edit file\n"
+		"         *  Toggle exe              >  Export list\n"
+		"  Space ^J  (Un)select       m ^Space  Mark range/clear sel\n"
+		"         a  Select all              A  Invert sel\n"
+		"      p ^P  Copy sel here        w ^W  Cp/mv sel as\n"
+		"      v ^V  Move sel here           E  Edit sel\n"
+		"      x ^X  Delete\n"
+		" MISC\n"
+		"     Alt ;  Select plugin           =  Launch app\n"
+		"      ! ^]  Shell                   ]  Cmd prompt\n"
+		"         c  Connect remote          u  Unmount remote/archive\n"
+		"      t ^T  Sort toggles            s  Manage session\n"
+		"         T  Set time type           0  Lock\n"
 	};
 
 	fd = create_tmp_file();
@@ -4619,18 +4618,7 @@ static void show_help(const char *path)
 		pipetof("fortune", fp);
 #endif
 
-	start = end = helpstr;
-	while (*end) {
-		if (*end == '\n') {
-			snprintf(g_buf, CMD_LEN_MAX, "%*c%.*s",
-				 xchartohex(*start), ' ', (int)(end - start), start + 1);
-			fprintf(fp, g_buf, ' ');
-			start = end + 1;
-		}
-
-		++end;
-	}
-
+	fprintf(fp, "%s", helpstr);
 	fprintf(fp, "\nVOLUME: %s of ", coolsize(get_fs_info(path, FREE)));
 	fprintf(fp, "%s free\n\n", coolsize(get_fs_info(path, CAPACITY)));
 
@@ -5600,7 +5588,6 @@ static void statusbar(char *path)
 		ptr = "\b";
 
 	tolastln();
-	attron(COLOR_PAIR(cfg.curctx + 1));
 
 	printw("%d/%d ", cur + 1, ndents);
 
@@ -5661,8 +5648,6 @@ static void statusbar(char *path)
 		addstr(ptr);
 		addch('\n');
 	}
-
-	attroff(COLOR_PAIR(cfg.curctx + 1));
 
 	if (cfg.cursormode)
 		tocursor();
@@ -5775,7 +5760,7 @@ static void redraw(char *path)
 	}
 	addstr("] "); /* 10 chars printed for contexts - "[1 2 3 4] " */
 
-	attron(A_UNDERLINE | COLOR_PAIR(cfg.curctx + 1));
+	attron(A_UNDERLINE);
 
 	/* Print path */
 	i = (int)xstrlen(path);
@@ -5805,7 +5790,7 @@ static void redraw(char *path)
 		addnstr(base, ncols - (MIN_DISPLAY_COLS + i));
 	}
 
-	attroff(A_UNDERLINE | COLOR_PAIR(cfg.curctx + 1));
+	attroff(A_UNDERLINE);
 
 	ncols = adjust_cols(ncols);
 
