@@ -1488,12 +1488,24 @@ static size_t appendslash(char *path)
 	return len;
 }
 
+static char *findinsel(int len)
+{
+	if (!selbufpos)
+		return FALSE;
+
+	/* memmem(3):
+	 * This function is not specified in POSIX.1, but is present on a number of other systems.
+	 */
+	return memmem(pselbuf, selbufpos, g_buf, len);
+}
+
 static void invertselbuf(char *path, bool toggle)
 {
 	selbufpos = lastappendpos;
 
 	if (toggle || nselected) {
-		size_t len = appendslash(path);
+		size_t len;
+		char *found;
 
 		for (int i = 0; i < ndents; ++i) {
 			if (toggle) { /* Toggle selection status */
@@ -1501,14 +1513,16 @@ static void invertselbuf(char *path, bool toggle)
 				pdents[i].flags & FILE_SELECTED ? ++nselected : --nselected;
 			}
 
-			if (pdents[i].flags & FILE_SELECTED)
-				appendfpath(path,
-					len + xstrsncpy(path + len, pdents[i].name, PATH_MAX - len));
-		}
+			len = mkpath(path, pdents[i].name, g_buf);
+			found = findinsel(len);
 
-		if (len > 1)
-			--len;
-		path[len] = '\0';
+			if (pdents[i].flags & FILE_SELECTED && !found) /* append if missing from selection*/
+				appendfpath(g_buf, len);
+			else if (!(pdents[i].flags & FILE_SELECTED) && found) { /* remove if no longer selected */
+				memcpy(found, found+len, selbufpos - (pselbuf - (found+len)));
+				selbufpos -= len;
+			}
+		}
 
 		nselected ? writesel(pselbuf, selbufpos - 1) : writesel(NULL, 0);
 	} else
@@ -5282,6 +5296,9 @@ static int dentfill(char *path, struct entry **ppdents)
 			dentp->flags |= entflags;
 			entflags = 0;
 		}
+
+		if (findinsel(mkpath(path, dentp->name, g_buf)) != NULL)
+			dentp->flags |= FILE_SELECTED;
 
 		if (cfg.blkorder) {
 			if (S_ISDIR(sb.st_mode)) {
