@@ -806,7 +806,6 @@ static int set_sort_flags(int r);
 #ifndef NOFIFO
 static void notify_fifo(bool force);
 #endif
-static int markcmp(const void *va, const void *vb);
 
 /* Functions */
 
@@ -1497,8 +1496,8 @@ static char *findinsel(int len)
 		/* memmem(3):
 		 * This function is not specified in POSIX.1, but is present on a number of other systems.
 		 */
-		memmem(found, selbufpos - (found - pselbuf), g_buf, len);
-	} while (found > pselbuf && *(found - 1) == '\0');
+		found = memmem(found, selbufpos - (found - pselbuf), g_buf, len);
+	} while (found > pselbuf && *(found - 1));
 	return found;
 }
 
@@ -5097,7 +5096,7 @@ static int dentfill(char *path, struct entry **ppdents)
 	uchar_t entflags = 0;
 	int flags = 0;
 	struct dirent *dp;
-	char *namep, *pnb, *buf = NULL;
+	char *found, *namep, *pnb, *buf = NULL;
 	struct entry *dentp;
 	size_t off = 0, namebuflen = NAMEBUF_INCR;
 	struct stat sb_path, sb;
@@ -5156,6 +5155,8 @@ static int dentfill(char *path, struct entry **ppdents)
 		flags = AT_SYMLINK_NOFOLLOW;
 	}
 #endif
+
+	found = findinsel(xstrsncpy(g_buf, path, xstrlen(path)) - 1);
 
 	do {
 		namep = dp->d_name;
@@ -5298,7 +5299,7 @@ static int dentfill(char *path, struct entry **ppdents)
 			entflags = 0;
 		}
 
-		if (findinsel(mkpath(path, dentp->name, g_buf)) != NULL)
+		if (found && findinsel(mkpath(path, dentp->name, g_buf)) != NULL)
 			dentp->flags |= FILE_SELECTED;
 
 		if (cfg.blkorder) {

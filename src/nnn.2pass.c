@@ -1503,15 +1503,15 @@ static char *findinsel(int len)
 		/* memmem(3):
 		 * This function is not specified in POSIX.1, but is present on a number of other systems.
 		 */
-		memmem(found, selbufpos - (found - pselbuf), g_buf, len);
-	} while (found > pselbuf && *(found - 1) == '\0');
+		found = memmem(found, selbufpos - (found - pselbuf), g_buf, len);
+	} while (found > pselbuf && *(found - 1));
 	return found;
 }
 
 static void invertselbuf(char *path)
 {
 	if (nselected) {
-		size_t len;
+		size_t len, offset = 0;
 		char *found;
 		int nmarked = 0, prev = 0;
 		selmark *marked = malloc(nselected * sizeof(selmark));
@@ -1543,17 +1543,21 @@ static void invertselbuf(char *path)
 		for (int i = 1; i < nmarked; ++i) {
 			if (marked[i].startpos == marked[prev].startpos + marked[prev].len)
 				marked[prev].len += marked[i].len;
-			else
+			else {
 				++prev;
+				marked[prev].startpos = marked[i].startpos;
+				marked[prev].len = marked[i].len;
+			}
 		}
 
 		nmarked = prev + 1;
 
 		for (int i = 0; i < nmarked; ++i) {
-			found = marked[i].startpos;
+			found = marked[i].startpos - offset;
 			len = marked[i].len;
 
 			memmove(found, found+len, selbufpos - ((found+len) - pselbuf));
+			offset += len;
 			selbufpos -= len;
 		}
 
@@ -5161,7 +5165,7 @@ static int dentfill(char *path, struct entry **ppdents)
 	uchar_t entflags = 0;
 	int flags = 0;
 	struct dirent *dp;
-	char *namep, *pnb, *buf = NULL;
+	char *found, *namep, *pnb, *buf = NULL;
 	struct entry *dentp;
 	size_t off = 0, namebuflen = NAMEBUF_INCR;
 	struct stat sb_path, sb;
@@ -5220,6 +5224,8 @@ static int dentfill(char *path, struct entry **ppdents)
 		flags = AT_SYMLINK_NOFOLLOW;
 	}
 #endif
+
+	found = findinsel(xstrsncpy(g_buf, path, xstrlen(path)) - 1);
 
 	do {
 		namep = dp->d_name;
@@ -5362,7 +5368,7 @@ static int dentfill(char *path, struct entry **ppdents)
 			entflags = 0;
 		}
 
-		if (findinsel(mkpath(path, dentp->name, g_buf)) != NULL)
+		if (found && findinsel(mkpath(path, dentp->name, g_buf)) != NULL)
 			dentp->flags |= FILE_SELECTED;
 
 		if (cfg.blkorder) {
