@@ -408,7 +408,7 @@ static int nselected;
 #ifndef NOFIFO
 static int fifofd = -1;
 #endif
-static uint_t idletimeout, selbufpos, lastappendpos, selbuflen;
+static uint_t idletimeout, selbufpos, selbuflen;
 static ushort_t xlines, xcols;
 static ushort_t idle;
 static uchar_t maxbm, maxplug;
@@ -1476,8 +1476,6 @@ static void startselection(void)
 			writesel(NULL, 0);
 			selbufpos = 0;
 		}
-
-		lastappendpos = 0;
 	}
 }
 
@@ -1500,10 +1498,14 @@ static char *findinsel(int len)
 	if (!selbufpos)
 		return FALSE;
 
-	/* memmem(3):
-	 * This function is not specified in POSIX.1, but is present on a number of other systems.
-	 */
-	return memmem(pselbuf, selbufpos, g_buf, len);
+	char *found = pselbuf;
+	do {
+		/* memmem(3):
+		 * This function is not specified in POSIX.1, but is present on a number of other systems.
+		 */
+		memmem(found, selbufpos - (found - pselbuf), g_buf, len);
+	} while (found > pselbuf && *(found - 1) == '\0');
+	return found;
 }
 
 static void invertselbuf(char *path)
@@ -5632,9 +5634,6 @@ static int handle_context_switch(enum action sel)
 			else
 				return -1;
 		}
-
-		if (g_state.selmode) /* Remember the position from where to continue selection */
-			lastappendpos = selbufpos;
 	}
 
 	return r;
@@ -6208,9 +6207,6 @@ begin:
 	}
 #endif
 
-	if (g_state.selmode && lastdir[0])
-		lastappendpos = selbufpos;
-
 #ifdef LINUX_INOTIFY
 	if ((presel == FILTER || watch) && inotify_wd >= 0) {
 		inotify_rm_watch(inotify_fd, inotify_wd);
@@ -6293,9 +6289,6 @@ nochange:
 				if (r >= CTX_MAX)
 					sel = SEL_BACK;
 				else if (r >= 0 && r != cfg.curctx) {
-					if (g_state.selmode)
-						lastappendpos = selbufpos;
-
 					savecurctx(&cfg, path, pdents[cur].name, r);
 
 					/* Reset the pointers */
