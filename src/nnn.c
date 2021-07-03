@@ -1519,7 +1519,7 @@ static char *findinsel(int len)
 static void invertselbuf(char *path)
 {
 	if (nselected) {
-		size_t len, offset = 0;
+		size_t len, endpos, offset = 0;
 		char *found;
 
 		if (nselected > LARGESEL) {
@@ -1589,13 +1589,15 @@ static void invertselbuf(char *path)
 
 		/* Remove no longer selected */
 		for (int i = 0; i < nmarked; ++i) {
-			found = marked[i].startpos - offset;
+			found = marked[i].startpos;
+			endpos = (i + 1 == nmarked ? selbufpos : marked[i + 1].startpos - pselbuf);
 			len = marked[i].len;
 
-			memmove(found, found+len, selbufpos - ((found+len) - pselbuf));
+			memmove(found, found + len, endpos - (found + len - pselbuf));
 			offset += len;
-			selbufpos -= len;
 		}
+
+		selbufpos -= offset;
 
 		free(marked);
 
